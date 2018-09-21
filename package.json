@@ -1,0 +1,36 @@
+{
+  "name": "node-red-contrib-hysteresis",
+  "version": "0.1.0",
+  "description": "Adds hysteresis function to node-red",
+  "main": "hysteresis.js",
+  "files": [
+    "/icons",
+	"/hysteresis.js"
+	"/hysteresis.html"
+  ]
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sineos/node-red-contrib-hysteresis"
+  },
+  "keywords": [
+    "hysteresis",
+    "falling",
+    "rising",
+    "trigger",
+    "node-red"
+  ],
+  "node-red": {
+    "nodes": {
+        "hysteresis": "hysteresis.js"
+    }
+  },
+  "author": "Sineos",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Sineos/node-red-contrib-hysteresis/issues"
+  },
+  "homepage": "https://github.com/Sineos/node-red-contrib-hysteresis#readme",
+}
