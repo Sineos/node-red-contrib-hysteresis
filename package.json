@@ -1,10 +1,11 @@
 {
 	"name": "node-red-contrib-hysteresis",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Adds hysteresis function to node-red",
 	"main": "hysteresis.js",
 	"files": [
 		"/icons",
+		"/examples",
 		"/hysteresis.js",
 		"/hysteresis.html"
 	],
