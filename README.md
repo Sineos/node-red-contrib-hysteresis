@@ -1,5 +1,7 @@
 # node-red-contrib-hysteresis
 
+[![npm version](https://badge.fury.io/js/node-red-contrib-hysteresis.svg)](https://badge.fury.io/js/node-red-contrib-hysteresis)
+
 Provides a hysteresis or deadband function.
 
 ## Details
