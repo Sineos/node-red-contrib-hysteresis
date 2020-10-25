@@ -1,0 +1,386 @@
+[
+    {
+        "id": "a40f8b0e.e67288",
+        "type": "hysteresis",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "ThresholdType": "dynamic",
+        "ThresholdRising": "",
+        "ThresholdFalling": "",
+        "TopicThreshold": "my_dyn_threshold",
+        "TopicCurrent": "my_current_value",
+        "ThresholdDeltaRising": "5",
+        "ThresholdDeltaFalling": "5",
+        "InitialMessage": true,
+        "OutRisingType": "str",
+        "OutRisingValue": "upper exceeded",
+        "OutFallingType": "str",
+        "OutFallingValue": "lower underran",
+        "OutTopicType": "str",
+        "OutTopicValue": "test topic",
+        "DynRaiseError": true,
+        "x": 1020,
+        "y": 420,
+        "wires": [
+            [
+                "1da1a3c2.a1807c"
+            ]
+        ]
+    },
+    {
+        "id": "1da1a3c2.a1807c",
+        "type": "debug",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1210,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "3431c2f0.8275ee",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_dyn_threshold",
+        "payload": "20",
+        "payloadType": "num",
+        "x": 760,
+        "y": 140,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "f2d9f28f.1f254",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "20",
+        "payloadType": "num",
+        "x": 760,
+        "y": 380,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "3fb90d36.745602",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "26",
+        "payloadType": "num",
+        "x": 760,
+        "y": 540,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "9d76d540.8d13d",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "14",
+        "payloadType": "num",
+        "x": 760,
+        "y": 300,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "9ec83592.e4e848",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "13",
+        "payloadType": "num",
+        "x": 760,
+        "y": 260,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "d40c42cf.20592",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "12",
+        "payloadType": "num",
+        "x": 760,
+        "y": 220,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "7ef42e7c.a6ecb8",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "27",
+        "payloadType": "num",
+        "x": 760,
+        "y": 580,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "4234989d.33142",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "28",
+        "payloadType": "num",
+        "x": 760,
+        "y": 620,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "7eae1ec9.145348",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "21",
+        "payloadType": "num",
+        "x": 760,
+        "y": 420,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "f728e075.542f9",
+        "type": "inject",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "my_current_value",
+        "payload": "22",
+        "payloadType": "num",
+        "x": 760,
+        "y": 460,
+        "wires": [
+            [
+                "a40f8b0e.e67288"
+            ]
+        ]
+    },
+    {
+        "id": "e608dc44.6d38f8",
+        "type": "comment",
+        "z": "af01642a.58d1f",
+        "name": "Dynamic Threshold",
+        "info": "Set the dynamic threshold.\nUntil this is injected, the hysteresis node will \nshow the warning \"Thresholds missing\" ",
+        "x": 730,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "384db5a.994a84a",
+        "type": "comment",
+        "z": "af01642a.58d1f",
+        "name": "Low Band Values",
+        "info": "Output will only be generated when the lower trigger \nthreshold is reached for the first time",
+        "x": 720,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "eb4a514d.09be18",
+        "type": "comment",
+        "z": "af01642a.58d1f",
+        "name": "Dead Band Values",
+        "info": "In the \"dead band\" no output will be generated until\nthe opposite trigger level is reached",
+        "x": 730,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "6befbefb.0b554",
+        "type": "comment",
+        "z": "af01642a.58d1f",
+        "name": "High Band Values",
+        "info": "Output will only be generated when the upper trigger \nthreshold is reached for the first time",
+        "x": 730,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "f0041ca.0231a6",
+        "type": "debug",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1190,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "85e96cbf.e608d8",
+        "type": "change",
+        "z": "af01642a.58d1f",
+        "name": "Set Value for Initial Dead Band",
+        "rules": [
+            {
+                "t": "set",
+                "p": "topic",
+                "pt": "msg",
+                "to": "test topic",
+                "tot": "str"
+            },
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "20",
+                "tot": "num"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1530,
+        "y": 540,
+        "wires": [
+            [
+                "1da1a3c2.a1807c"
+            ]
+        ]
+    },
+    {
+        "id": "2f92c76e.42dca",
+        "type": "switch",
+        "z": "af01642a.58d1f",
+        "name": "Test on initial dead band",
+        "property": "status.text",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "cont",
+                "v": "(initial dead band)",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 1250,
+        "y": 540,
+        "wires": [
+            [
+                "85e96cbf.e608d8"
+            ]
+        ]
+    },
+    {
+        "id": "a10356b0.86eb5",
+        "type": "status",
+        "z": "af01642a.58d1f",
+        "name": "",
+        "scope": [
+            "a40f8b0e.e67288"
+        ],
+        "x": 1020,
+        "y": 540,
+        "wires": [
+            [
+                "f0041ca.0231a6",
+                "2f92c76e.42dca"
+            ]
+        ]
+    }
+]

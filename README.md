@@ -29,8 +29,10 @@ Dynamic thresholds expect following settings:
 *   `Topic Current` specifies a message topic under which the current values are send. This values are then matched against the respective thresholds.
 *   `Hysteresis+` is the upper delta for the triggering point. The `msg.payload` from `Threshold Topic` plus the `Hysteresis+` value equals the `Upper Threshold`.
 *   `Hysteresis-` is the lower delta for the triggering point. The `msg.payload` from `Threshold Topic` minus the `Hysteresis-` value equals the `Lower Threshold`.
+*   `Raise error on missing threshold` will create an error object in case the threshold is missing and `Topic Current` value arrives. This can be handled via a  `Catch` node. Also see the included examples 
 
-**Note:** The values set in dynamic mode will not survive a node-red deploy or restart.
+**Note:** 
+The values set in dynamic mode will typically not survive a node-red deploy or restart. With version **0.3.0** the node will save all relevant settings as context. Using a persistent context store, e.g. file, will allow the node to recover these values and continue from there.
 
 ## Send initial message
 
@@ -39,6 +41,9 @@ After starting node-red or deploying the flow, the hysteresis node does not know
 ## Output Options
 
 In the node Output settings either `Original Payload / Topic` or custom values can be specified.
+
+## Node Status
+The node makes extensive use of status information. These can be used to react on status changes with the `Status` node. Also see the included examples for a how-to.
 
 ## Use cases
 
