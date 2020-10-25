@@ -21,7 +21,8 @@
 			OutFallingType: {value: ''},
 			OutFallingValue: {value: ''},
 			OutTopicType: {value: ''},
-			OutTopicValue: {value: ''}
+			OutTopicValue: {value: ''},
+			DynRaiseError: {checked: 'unchecked'}
 		},
 		inputs: 1,
 		outputs: 1,
@@ -97,13 +98,17 @@
 		<input type="text" id="node-input-TopicCurrent" placeholder="value" style="width: 280px">
 	</div>
 	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important" for="node-input-ThresholdDelataRising"><i class="fa fa-plus-square"></i> Hysteresis +</label>
+		<label style="width: 140px !important" for="node-input-ThresholdDeltaRising"><i class="fa fa-plus-square"></i> Hysteresis +</label>
 		<input type="text" id="node-input-ThresholdDeltaRising" placeholder="value" style="width: 280px">
 	</div>
 	<div class="form-row form-row-ThresholdTypeDynamic">
 		<label style="width: 140px !important" for="node-input-ThresholdDeltaFalling"><i class="fa fa-minus-square"></i> Hysteresis -</label>
 		<input type="text" id="node-input-ThresholdDeltaFalling" placeholder="value" style="width: 280px">
 	</div>
+	<div class="form-row form-row-ThresholdTypeDynamic">
+		<label style="width: 140px !important;" for="node-input-DynRaiseError"> Raise error on missing threshold</label>
+		<input type="checkbox" id="node-input-DynRaiseError" style="margin-left: 0px; vertical-align: middle; width: auto !important;"> 
+	</div>	
 	<!-- Payload Options -->
 	<div class="form-row">
 		<label style="width: 140px !important;"><h5><strong>Output Settings</strong></h5></label>

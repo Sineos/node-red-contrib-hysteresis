@@ -1,5 +1,5 @@
 module.exports = function(RED) {
-	'use strict';
+
 	function HysteresisNode(config) {
 		RED.nodes.createNode(this, config);
 
@@ -10,6 +10,7 @@ module.exports = function(RED) {
 		this.TopicCurrent = config.TopicCurrent;
 		this.ThresholdDeltaRising = config.ThresholdDeltaRising;
 		this.ThresholdDeltaFalling = config.ThresholdDeltaFalling;
+		this.DynRaiseError = config.DynRaiseError;
 		this.InitialMessage = config.InitialMessage;
 		this.OutRisingType = config.OutRisingType;
 		this.OutRisingValue = config.OutRisingValue;
@@ -44,16 +45,19 @@ module.exports = function(RED) {
 			}
 		}
 
+		// Define a node context
+		var nodeContext = this.context();
+
 		// eslint-disable-next-line prefer-const
 		let node = this;
-		let TriggerValueRising = '';
-		let TriggerValueFalling = '';
+		let TriggerValueRising = nodeContext.get('TriggerValueRising') || '';
+		let TriggerValueFalling = nodeContext.get('TriggerValueFalling') || '';
 		if (this.ThresholdType === 'fixed') {
 			TriggerValueRising = Number.parseFloat(this.ThresholdRising);
 			TriggerValueFalling = Number.parseFloat(this.ThresholdFalling);
 		}
-		// clear direction flag
-		node.direction = '';
+		// get from context or clear direction flag
+		node.direction = nodeContext.get('Direction') || '';
 
 		// Set initial status
 		if (!TriggerValueRising) {
@@ -62,12 +66,36 @@ module.exports = function(RED) {
 			node.status({fill:'yellow', shape:'ring', text: TriggerValueFalling + '/--/' + TriggerValueRising});
 		}
 
-		this.on('input', function(msg) {
+		this.on('input', function(msg, send, done) {
+			// For maximum backwards compatibility, check that send exists.
+			// If this node is installed in Node-RED 0.x, it will need to
+			// fallback to using `node.send`
+			send = send || function() {
+				node.send.apply(node, arguments);
+			};
+
 			// Check for proper topic when using dynamic threshold
 			if (this.ThresholdType === 'dynamic' && msg.topic === this.TopicThreshold && !Number.isNaN(msg.payload)) {
 				TriggerValueRising = Number.parseFloat(msg.payload) + Number.parseFloat(this.ThresholdDeltaRising);
 				TriggerValueFalling = Number.parseFloat(msg.payload) - Number.parseFloat(this.ThresholdDeltaFalling);
+				nodeContext.set('TriggerValueRising', TriggerValueRising);
+				nodeContext.set('TriggerValueFalling', TriggerValueFalling);
 				node.status({fill:'yellow', shape:'ring', text: TriggerValueFalling + '/--/' + TriggerValueRising});
+			}
+
+			// Raise error when receiving a 'TopicCurrent' payload but no dynamic threshold set
+			if (Object.prototype.hasOwnProperty.call(msg, 'payload') && this.ThresholdType === 'dynamic' &&
+				!TriggerValueRising && msg.topic === this.TopicCurrent && this.DynRaiseError) {
+				const err = new Error('Thresholds missing');
+				if (err) {
+					if (done) {
+						// Node-RED 1.0 compatible
+						done(err);
+					} else {
+						// Node-RED 0.x compatible
+						node.error(err, msg);
+					}
+				}
 			}
 
 			// original msg object
@@ -78,22 +106,26 @@ module.exports = function(RED) {
 			}
 
 			if ((Object.prototype.hasOwnProperty.call(msg, 'payload') && this.ThresholdType === 'fixed' && !Number.isNaN(msg.payload)) ||
-          (Object.prototype.hasOwnProperty.call(msg, 'payload') && this.ThresholdType === 'dynamic' &&
-          msg.topic === this.TopicCurrent && TriggerValueRising && !Number.isNaN(msg.payload))) {
+                (Object.prototype.hasOwnProperty.call(msg, 'payload') && this.ThresholdType === 'dynamic' &&
+                msg.topic === this.TopicCurrent && TriggerValueRising && !Number.isNaN(msg.payload))) {
 				const CurrentValue = Number.parseFloat(msg.payload);
 				// Cover the case where no initial values are known
 				if (this.InitialMessage && node.direction === '' && !Number.isNaN(CurrentValue)) {
 					if (CurrentValue >= TriggerValueRising) {
 						msgNew.payload = (this.OutRisingType === 'pay' ? msgNew.payload : this.OutRisingValue);
 						msgNew.hystdirection = 'initial high';
-						node.send(msgNew);
+						send(msgNew);
 						node.direction = 'high';
+						nodeContext.set('Direction', node.direction);
 						node.status({fill:'green', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (initial high band)'});
+					} else if ((CurrentValue > TriggerValueFalling) && (CurrentValue < TriggerValueRising)) {
+						node.status({fill:'green', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (initial dead band)'});
 					} else if (CurrentValue <= TriggerValueFalling) {
 						msgNew.payload = (this.OutFallingType === 'pay' ? msgNew.payload : this.OutFallingValue);
 						msgNew.hystdirection = 'initial low';
-						node.send(msgNew);
+						send(msgNew);
 						node.direction = 'low';
+						nodeContext.set('Direction', node.direction);
 						node.status({fill:'blue', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (initial low band)'});
 					}
 					// Last value known. Work as hysteresis
@@ -102,15 +134,17 @@ module.exports = function(RED) {
 					if (CurrentValue > node.LastValue && CurrentValue >= TriggerValueRising && node.direction !== 'high') {
 						msgNew.payload = (this.OutRisingType === 'pay' ? msgNew.payload : this.OutRisingValue);
 						msgNew.hystdirection = 'high';
-						node.send(msgNew);
+						send(msgNew);
 						node.direction = 'high';
+						nodeContext.set('Direction', node.direction);
 						node.status({fill:'green', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (high band)'});
 						// falling
 					} else if (CurrentValue < node.LastValue && CurrentValue <= TriggerValueFalling && node.direction !== 'low') {
 						msgNew.payload = (this.OutFallingType === 'pay' ? msgNew.payload : this.OutFallingValue);
 						msgNew.hystdirection = 'low';
-						node.send(msgNew);
+						send(msgNew);
 						node.direction = 'low';
+						nodeContext.set('Direction', node.direction);
 						node.status({fill:'blue', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (low band)'});
 					} else if (CurrentValue > node.LastValue && CurrentValue >= TriggerValueRising && node.direction === 'high') {
 						node.status({fill:'green', shape:'dot', text: TriggerValueFalling + '/' + CurrentValue + '/' + TriggerValueRising + ' (high band rising)'});
@@ -131,6 +165,11 @@ module.exports = function(RED) {
 					}
 				}
 				node.LastValue = CurrentValue;
+				nodeContext.set('LastValue', node.LastValue);
+
+				if (done) {
+					done();
+				}
 			}
 		});
 	}
