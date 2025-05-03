@@ -1,97 +1,105 @@
 {
-	"name": "node-red-contrib-hysteresis",
-	"version": "0.3.0",
-	"description": "Adds hysteresis function to node-red",
-	"main": "hysteresis.js",
-	"files": [
-		"/icons",
-		"/examples",
-		"/hysteresis.js",
-		"/hysteresis.html"
-	],
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/Sineos/node-red-contrib-hysteresis"
-	},
-	"keywords": [
-		"hysteresis",
-		"falling",
-		"rising",
-		"trigger",
-		"node-red"
-	],
-	"node-red": {
-		"nodes": {
-			"hysteresis": "hysteresis.js"
-		}
-	},
-	"author": "Sineos",
-	"license": "GPL-3.0",
-	"bugs": {
-		"url": "https://github.com/Sineos/node-red-contrib-hysteresis/issues"
-	},
-	"homepage": "https://github.com/Sineos/node-red-contrib-hysteresis#readme",
-	"devDependencies": {
-		"eslint": "*",
-		"eslint-plugin-unicorn": "*",
-		"eslint-plugin-html": "*"
-	},
-	"eslintConfig": {
-		"parserOptions": {
-			"ecmaVersion": 8,
-			"sourceType": "module"
-		},
-		"extends": "eslint:recommended",
-		"env": {
-			"node": true,
-			"es6": true
-		},
-		"plugins": [
-			"html",
-			"unicorn"
-		],
-		"globals": {
-			"$": "writable",
-			"RED": "writable",
-			"window": "writable",
-			"document": "writable",
-			"fetch": "writable",
-			"vis": "writable",
-			"msg": "writable"
-		},
-		"rules": {
-			"indent": [
-				"error",
-				"tab",
-				{
-					"VariableDeclarator": 2
-				}
-			],
-			"no-tabs": [
-				"error",
-				{
-					"allowIndentationTabs": true
-				}
-			],
-			"no-template-curly-in-string": "warn",
-			"capitalized-comments": 0,
-			"spaced-comment": 0,
-			"prefer-reflect": 0,
-			"unicorn/catch-error-name": 0,
-			"unicorn/prevent-abbreviations": 0,
-			"no-unused-expressions": "warn",
-			"no-await-in-loop": "warn",
-			"unicorn/prefer-string-slice": "warn",
-			"require-atomic-updates": "warn",
-			"unicorn/no-nested-ternary": "warn",
-			"prefer-named-capture-group": "warn",
-			"unicorn/prefer-number-properties": "warn",
-			"unicorn/no-fn-reference-in-iterator": "warn",
-			"unicorn/better-regex": "warn",
-			"unicorn/prefer-optional-catch-binding": "warn"
-		}
-	}
+    "name": "node-red-contrib-hysteresis",
+    "version": "0.4.0",
+    "description": "A Node-RED node that provides hysteresis control for threshold-based logic.",
+    "main": "hysteresis.js",
+    "files": [
+        "icons",
+        "examples",
+        "hysteresis.js",
+        "hysteresis.html"
+    ],
+    "scripts": {
+        "test": "echo \"No tests defined\" && exit 0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Sineos/node-red-contrib-hysteresis"
+    },
+    "keywords": [
+        "node-red",
+        "hysteresis",
+        "threshold",
+        "trigger",
+        "automation",
+        "control",
+        "rising",
+        "falling"
+    ],
+    "node-red": {
+        "nodes": {
+            "hysteresis": "hysteresis.js"
+        }
+    },
+    "author": "Sineos",
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/Sineos/node-red-contrib-hysteresis/issues"
+    },
+    "homepage": "https://github.com/Sineos/node-red-contrib-hysteresis#readme",
+    "devDependencies": {
+        "eslint": "*",
+        "eslint-plugin-unicorn": "*",
+        "eslint-plugin-html": "*"
+    },
+    "eslintConfig": {
+        "parserOptions": {
+            "ecmaVersion": 8,
+            "sourceType": "module"
+        },
+        "extends": "eslint:recommended",
+        "env": {
+            "node": true,
+            "es6": true
+        },
+        "plugins": [
+            "html",
+            "unicorn"
+        ],
+        "globals": {
+            "$": "writable",
+            "RED": "writable",
+            "window": "writable",
+            "document": "writable",
+            "fetch": "writable",
+            "vis": "writable",
+            "msg": "writable"
+        },
+        "rules": {
+            "indent": [
+                "error",
+                4,
+                {
+                    "VariableDeclarator": 1
+                }
+            ],
+            "no-tabs": "error",
+            "max-len": [
+                "warn",
+                {
+                    "code": 160
+                }
+            ],
+            "curly": [
+                "error",
+                "multi-line"
+            ],
+            "no-template-curly-in-string": "warn",
+            "capitalized-comments": "off",
+            "spaced-comment": "off",
+            "prefer-reflect": "off",
+            "unicorn/catch-error-name": "off",
+            "unicorn/prevent-abbreviations": "off",
+            "no-unused-expressions": "warn",
+            "no-await-in-loop": "warn",
+            "unicorn/prefer-string-slice": "warn",
+            "require-atomic-updates": "warn",
+            "unicorn/no-nested-ternary": "warn",
+            "prefer-named-capture-group": "warn",
+            "unicorn/prefer-number-properties": "warn",
+            "unicorn/no-fn-reference-in-iterator": "warn",
+            "unicorn/better-regex": "warn",
+            "unicorn/prefer-optional-catch-binding": "warn"
+        }
+    }
 }

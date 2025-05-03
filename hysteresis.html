@@ -1,182 +1,310 @@
 <script type="text/javascript">
-	RED.nodes.registerType('hysteresis', {
-		category: 'function',
-		color: '#E2D96E',
-		defaults: {
-			name: {value: ''},
-			ThresholdType: {value:'fixed'},
-			//ThresholdRising: {value: "", required: true, validate: RED.validators.number()},
-			//ThresholdFalling: {value: "", required: true, validate: RED.validators.number()},
-			ThresholdRising: {value: ''},
-			ThresholdFalling: {value: ''},
-			TopicThreshold: {value: ''},
-			TopicCurrent: {value: ''},
-			//ThresholdDeltaRising: {value: "", validate: RED.validators.number()},
-			//ThresholdDeltaFalling: {value: "", validate: RED.validators.number()},
-			ThresholdDeltaRising: {value: ''},
-			ThresholdDeltaFalling: {value: ''},
-			InitialMessage: {checked: 'checked'},
-			OutRisingType: {value: ''},
-			OutRisingValue: {value: ''},
-			OutFallingType: {value: ''},
-			OutFallingValue: {value: ''},
-			OutTopicType: {value: ''},
-			OutTopicValue: {value: ''},
-			DynRaiseError: {checked: 'unchecked'}
-		},
-		inputs: 1,
-		outputs: 1,
-		icon: 'hysteresis.png',
-		label: function() {
-			return this.name || 'hysteresis';
-		},
-		labelStyle: function() {
-			return this.name?'node_label_italic':'';
-		},
-		oneditprepare: function() {
-			$('#node-input-ThresholdType').change(function() {
-				if ($(this).val() === 'fixed') {
-					$('.form-row-ThresholdTypeFixed').show();
-					$('.form-row-ThresholdTypeDynamic').hide();
-				} else {
-					$('.form-row-ThresholdTypeFixed').hide();
-					$('.form-row-ThresholdTypeDynamic').show();
-				}
-			});
-			var optionOriginalPayload = {value:'pay', label:'Original Message', hasValue:false};
-			var optionOriginalTopic = {value:'top', label:'Original Topic', hasValue:false};
-			$('#node-input-OutRisingValue').typedInput({
-				default: 'pay',
-				typeField: $('#node-input-OutRisingType'),
-				types:['str', 'num', 'bool', optionOriginalPayload]
-			});
-			$('#node-input-OutFallingValue').typedInput({
-				default: 'pay',
-				typeField: $('#node-input-OutFallingType'),
-				types:['str', 'num', 'bool', optionOriginalPayload]
-			});
-			$('#node-input-OutTopicValue').typedInput({
-				default: 'top',
-				typeField: $('#node-input-OutTopicType'),
-				types:['str', optionOriginalTopic]
-			});
-		}
-	});
+    RED.nodes.registerType('hysteresis', {
+        category: 'function',
+        color: '#E2D96E',
+        defaults: {
+            name: { value: '' },
+            ThresholdType: { value: 'fixed' },
+            ThresholdRising: { value: '' }, // Store as string, parse in backend/validation
+            ThresholdFalling: { value: '' },
+            TopicThreshold: { value: '' },
+            TopicCurrent: { value: '' },
+            ThresholdDeltaRising: { value: '' }, // Store as string, parse in backend/validation
+            ThresholdDeltaFalling: { value: '' },
+            InitialMessage: { value: true }, // Correct boolean default
+            OutRisingType: { value: 'pay' }, // Default type to 'pay' (matches TypedInput default)
+            OutRisingValue: { value: '' },
+            OutFallingType: { value: 'pay' }, // Default type to 'pay'
+            OutFallingValue: { value: '' },
+            OutTopicType: { value: 'top' }, // Default type to 'top'
+            OutTopicValue: { value: '' },
+            DynRaiseError: { value: false } // Correct boolean default
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'hysteresis.png',
+        label() {
+            return this.name || 'hysteresis';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+        // --- Toggle Visibility based on Mode ---
+            function toggleThresholdMode() {
+                const mode = $('#node-input-ThresholdType').val();
+
+                if (mode === 'fixed') {
+                    $('.form-row-ThresholdTypeFixed').show();
+                    $('.form-row-ThresholdTypeDynamic').hide();
+                } else {
+                    $('.form-row-ThresholdTypeFixed').hide();
+                    $('.form-row-ThresholdTypeDynamic').show();
+                }
+            }
+
+            // --- Validate Fixed Threshold Order ---
+            function validateFixedThresholds() {
+                const riseStr = $('#node-input-ThresholdRising').val();
+                const fallStr = $('#node-input-ThresholdFalling').val();
+                // Only validate if both fields contain something potentially numeric
+
+                if (riseStr.trim() !== '' && fallStr.trim() !== '') {
+                    const rise = Number.parseFloat(riseStr);
+                    const fall = Number.parseFloat(fallStr);
+
+                    if (!Number.isNaN(rise) && !Number.isNaN(fall)) {
+                        // Highlight both if invalid order
+                        const invalid = fall >= rise;
+                        const borderColor = invalid ? 'red' : '';
+
+                        $('#node-input-ThresholdRising').css('border-color', borderColor);
+                        $('#node-input-ThresholdFalling').css('border-color', borderColor);
+                    } else {
+                    // Clear border if one is not a number (backend handles NaN)
+                        $('#node-input-ThresholdRising').css('border-color', '');
+                        $('#node-input-ThresholdFalling').css('border-color', '');
+                    }
+                } else {
+                    // Clear border if fields are empty
+                    $('#node-input-ThresholdRising').css('border-color', '');
+                    $('#node-input-ThresholdFalling').css('border-color', '');
+                }
+            }
+
+            // --- Validate Dynamic Delta Values (Non-Negative Numbers) ---
+            function validateDynamicDeltas() {
+                $('#node-input-ThresholdDeltaRising, #node-input-ThresholdDeltaFalling').each(function() {
+                    const inputVal = $(this).val();
+
+                    if (inputVal.trim() === '') {
+                        // Allow empty input, backend treats as NaN or potentially 0? Backend needs parseFloat anyway. Clear border.
+                        $(this).css('border-color', '');
+                        
+                        return; // Skip validation for empty
+                    }
+                    const val = Number.parseFloat(inputVal);
+                    // Highlight if not a number OR if it's negative
+
+                    if (Number.isNaN(val) || val < 0) {
+                        $(this).css('border-color', 'red');
+                    } else {
+                        $(this).css('border-color', '');
+                    }
+                });
+            }
+
+            // --- Bind Events ---
+            $('#node-input-ThresholdType').change(toggleThresholdMode);
+            $('#node-input-ThresholdRising, #node-input-ThresholdFalling').on('input change', validateFixedThresholds); // Use change too for pasting etc.
+            $('#node-input-ThresholdDeltaRising, #node-input-ThresholdDeltaFalling').on('input change', validateDynamicDeltas);
+
+            // --- Initial Calls ---
+            toggleThresholdMode();
+            validateFixedThresholds();
+            validateDynamicDeltas();
+
+            // --- Typed Input Setup ---
+            const optionOriginalPayload = { value: 'pay', label: 'Original Payload', hasValue: false }; // Slightly clearer label
+            const optionOriginalTopic = { value: 'top', label: 'Original Topic', hasValue: false };
+
+            $('#node-input-OutRisingValue').typedInput({
+                default: 'pay', // Default to sending original payload
+                typeField: $('#node-input-OutRisingType'),
+                types: ['str', 'num', 'bool', 'json', 'pay'] // Added 'json', adjusted default to 'pay'
+            });
+            // Sync initial default type in hidden field if needed
+            if (!$('#node-input-OutRisingType').val()) {
+                $('#node-input-OutRisingType').val('pay'); 
+            }
+
+
+            $('#node-input-OutFallingValue').typedInput({
+                default: 'pay',
+                typeField: $('#node-input-OutFallingType'),
+                types: ['str', 'num', 'bool', 'json', 'pay']
+            });
+            if (!$('#node-input-OutFallingType').val()) {
+                $('#node-input-OutFallingType').val('pay'); 
+            }
+
+
+            $('#node-input-OutTopicValue').typedInput({
+                default: 'top',
+                typeField: $('#node-input-OutTopicType'),
+                types: ['str', optionOriginalTopic]
+            });
+            if (!$('#node-input-OutTopicType').val()) {
+                $('#node-input-OutTopicType').val('top'); 
+            }
+        }
+    });
 </script>
 
 <script type="text/x-red" data-template-name="hysteresis">
-	<div class="form-row">
-		<label style="width: 140px !important" for="node-input-name"><i class="icon-tag"></i> Name</label>
-		<input type="text" id="node-input-name" placeholder="name" style="width: 280px">
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important;"><h5><strong>Threshold Settings</strong></h5></label>
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important" for="node-input-ThresholdType"><i class="fa fa-wrench"></i> Threshold Type</label>
-		<select id="node-input-ThresholdType" style="width: 280px">
-			<option value="fixed">Fixed</option>
-			<option value="dynamic">Dynamic</option>
-		</select>
-	</div>
-	<!-- Fixed Threshold -->
-	<div class="form-row form-row-ThresholdTypeFixed">
-		<label style="width: 140px !important" for="node-input-ThresholdRising"><i class="fa fa-level-up"></i> Upper Threshold</label>
-		<input type="text" id="node-input-ThresholdRising" placeholder="value" style="width: 280px">
-	</div>
-	<div class="form-row form-row-ThresholdTypeFixed">
-		<label style="width: 140px !important" for="node-input-ThresholdFalling"><i class="fa fa-level-down"></i> Lower Threshold</label>
-		<input type="text" id="node-input-ThresholdFalling" placeholder="value" style="width: 280px">
-	</div>
-	<!-- Dynamic Threshold -->
-	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important" for="node-input-TopicThreshold"><i class="fa fa-tasks"></i> Topic Threshold</label>
-		<input type="text" id="node-input-TopicThreshold" placeholder="value" style="width: 280px">
-	</div>
-	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important" for="node-input-TopicCurrent"><i class="fa fa-tasks"></i>Topic Current</label>
-		<input type="text" id="node-input-TopicCurrent" placeholder="value" style="width: 280px">
-	</div>
-	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important" for="node-input-ThresholdDeltaRising"><i class="fa fa-plus-square"></i> Hysteresis +</label>
-		<input type="text" id="node-input-ThresholdDeltaRising" placeholder="value" style="width: 280px">
-	</div>
-	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important" for="node-input-ThresholdDeltaFalling"><i class="fa fa-minus-square"></i> Hysteresis -</label>
-		<input type="text" id="node-input-ThresholdDeltaFalling" placeholder="value" style="width: 280px">
-	</div>
-	<div class="form-row form-row-ThresholdTypeDynamic">
-		<label style="width: 140px !important;" for="node-input-DynRaiseError"> Raise error on missing threshold</label>
-		<input type="checkbox" id="node-input-DynRaiseError" style="margin-left: 0px; vertical-align: middle; width: auto !important;"> 
-	</div>	
-	<!-- Payload Options -->
-	<div class="form-row">
-		<label style="width: 140px !important;"><h5><strong>Output Settings</strong></h5></label>
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important;" for="node-input-InitialMessage"> Send initial message</label>
-		<input type="checkbox" id="node-input-InitialMessage" style="margin-left: 0px; vertical-align: middle; width: auto !important;"> 
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important" for="node-input-OutRisingType"><i class="fa fa-sign-out"></i> Upper Threshold</label>
-		<input type="hidden" id="node-input-OutRisingType">
-		<input type="text" id="node-input-OutRisingValue" style="width: 280px">
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important" for="node-input-OutFallingType"><i class="fa fa-sign-out"></i> Lower Threshold</label>
-		<input type="hidden" id="node-input-OutFallingType">
-		<input type="text" id="node-input-OutFallingValue" style="width: 280px">
-	</div>
-	<div class="form-row">
-		<label style="width: 140px !important" for="node-input-OutTopicType"><i class="fa fa-sign-out"></i> Topic</label>
-		<input type="hidden" id="node-input-OutTopicType">
-		<input type="text" id="node-input-OutTopicValue" style="width: 280px">
-	</div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Hysteresis" style="width: 50%;">
+    </div>
+
+    <div class="form-row">
+        <hr/>
+        <label style="width:auto"><b>Threshold Settings</b></label>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-ThresholdType"><i class="fa fa-wrench"></i> Mode</label>
+        <select id="node-input-ThresholdType" style="width: 50%;">
+            <option value="fixed">Fixed Thresholds</option>
+            <option value="dynamic">Dynamic Thresholds (via msg)</option>
+        </select>
+    </div>
+
+    <div class="form-row form-row-ThresholdTypeFixed">
+        <label for="node-input-ThresholdRising"><i class="fa fa-level-up"></i> Upper Threshold</label>
+        <input type="number" step="any" id="node-input-ThresholdRising" placeholder="e.g., 25" style="width: 50%;">
+    </div>
+    <div class="form-row form-row-ThresholdTypeFixed">
+        <label for="node-input-ThresholdFalling"><i class="fa fa-level-down"></i> Lower Threshold</label>
+        <input type="number" step="any" id="node-input-ThresholdFalling" placeholder="e.g., 20" style="width: 50%;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">Must be less than Upper Threshold</div>
+    </div>
+
+    <div class="form-row form-row-ThresholdTypeDynamic">
+        <label for="node-input-TopicThreshold"><i class="fa fa-envelope-o"></i> Threshold Topic</label>
+        <input type="text" id="node-input-TopicThreshold" placeholder="topic for center value" style="width: 50%;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">Topic of msg setting the center point (msg.payload). Not persisted.</div>
+    </div>
+    <div class="form-row form-row-ThresholdTypeDynamic">
+        <label for="node-input-TopicCurrent"><i class="fa fa-envelope"></i> Input Value Topic</label>
+        <input type="text" id="node-input-TopicCurrent" placeholder="topic for value to check" style="width: 50%;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">Topic of msg providing the value to check (msg.payload).</div>
+    </div>
+    <div class="form-row form-row-ThresholdTypeDynamic">
+        <label for="node-input-ThresholdDeltaRising"><i class="fa fa-plus-square"></i> Hysteresis (+)</label>
+        <input type="number" step="any" id="node-input-ThresholdDeltaRising" placeholder="e.g., 2 (non-negative)" style="width: 50%;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">Upper Threshold = Center + Delta(+)</div>
+    </div>
+    <div class="form-row form-row-ThresholdTypeDynamic">
+        <label for="node-input-ThresholdDeltaFalling"><i class="fa fa-minus-square"></i> Hysteresis (-)</label>
+        <input type="number" step="any" id="node-input-ThresholdDeltaFalling" placeholder="e.g., 2 (non-negative)" style="width: 50%;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">Lower Threshold = Center - Delta(-)</div>
+    </div>
+    <div class="form-row form-row-ThresholdTypeDynamic">
+        <label style="width: auto;" for="node-input-DynRaiseError"><i class="fa fa-exclamation-triangle"></i> Error if Threshold Missing</label>
+        <input type="checkbox" id="node-input-DynRaiseError" style="display: inline-block; width: auto; vertical-align: middle; margin-left: 10px;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">If checked, raise error if input arrives before dynamic thresholds are set.</div>
+    </div>
+
+    <div class="form-row">
+        <hr/>
+        <label style="width:auto"><b>Output Settings</b></label>
+    </div>
+
+    <div class="form-row">
+         <label style="width: auto;" for="node-input-InitialMessage"><i class="fa fa-paper-plane-o"></i> Send Output on Initial State</label>
+        <input type="checkbox" id="node-input-InitialMessage" style="display: inline-block; width: auto; vertical-align: middle; margin-left: 10px;">
+        <div style="margin-left: 105px; font-size: 0.8em; color: #888;">If checked, send output if first value is already high/low. (State is always tracked).</div>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-OutRisingValue"><i class="fa fa-arrow-up"></i> Output Payload (Rising)</label>
+        <input type="hidden" id="node-input-OutRisingType">
+        <input type="text" id="node-input-OutRisingValue" style="width: 50%;">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-OutFallingValue"><i class="fa fa-arrow-down"></i> Output Payload (Falling)</label>
+        <input type="hidden" id="node-input-OutFallingType">
+        <input type="text" id="node-input-OutFallingValue" style="width: 50%;">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-OutTopicValue"><i class="fa fa-tag"></i> Output Topic</label>
+        <input type="hidden" id="node-input-OutTopicType">
+        <input type="text" id="node-input-OutTopicValue" style="width: 50%;">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="hysteresis">
-	<p>Provides a hysteresis or deadband function.</p>
-	<h3>Details</h3>
-	<p>When a message arrives, the node will evaluate if the <code>msg.payload</code> is above a defined 
-	<code>Upper Threshold</code> or  below a <code>Lower Threshold</code>, while taking
-	into account the previous value. Whenever this happens a <code>msg</code> is send to the output. Following 
-	rules do apply:
-	<ul>
-		<li><code>msg.payload</code> is greater than previous <code>msg.payload</code> AND <code>msg.payload</code> greater or equal 
-				<code>Upper Threshold</code> then send output</li>
-		<li><code>msg.payload</code> is lesser than previous <code>msg.payload</code> AND <code>msg.payload</code> lesser or equal 
-				<code>Lower Threshold</code> then send output</li>
-		<li><code>msg.payload</code> is greater than <code>Lower Threshold</code> but lower than <code>Upper Threshold</code> do nothing</li>
-		<li>Once a threshold has been hit, no new output will be send until the respective opposite threshold is triggered </li>
-	</ul>
-	<h4>Fixed versus Dynamic Thresholds</h4>
-	<p>In the node settings either fixed or dynamic threshold can be specified.</p>
-	<h5>Fixed Thresholds</h5>
-	<p>Fixed thresholds allows to directly specify a <code>Upper Threshold</code> and <code>Lower Threshold</code>.
-	Both values have to be valid float numbers.</p>
-	<h5>Dynamic Thresholds</h5>
-	<p>Dynamic thresholds expect following settings:</p>
-		<ul>
-			<li><code> Topic Threshold</code> specifies a message topic under which a triggering point is send as <code>msg.payload</code>.</li>
-			<li><code> Topic Current</code> specifies a message topic under which the current values are send. This values are then matched against 
-		the respective thresholds.</li>
-			<li><code>Hysteresis+</code> is the upper delta for the triggering point. The <code>msg.payload</code> from <code>Threshold Topic</code> 
-					plus the <code>Hysteresis+</code> value equals the <code>Upper Threshold</code>.</li>
-			<li><code>Hysteresis-</code> is the lower delta for the triggering point. The <code>msg.payload</code> from <code>Threshold Topic</code> 
-					minus the <code>Hysteresis-</code> value equals the <code>Lower Threshold</code>.</li>
-		</ul>
-		<p><b>Note:</b> The values set in dynamic mode will not survive a node-red deploy or restart.</p>
-		<h5>Send initial message</h5>
-		<p>After starting node-red or deploying the flow, the hysteresis node does not know any previous values nor is able to determine the direction 
-		how the values develop.
-		<code>Send initial message</code> will simply match the first valid value against the lower or upper limit and send an output if any of the 
-		levels is exceeded respectively underran.</p>
-	<h4>Output Options</h4>
-		<p>In the node Output settings either <code>Original Payload / Topic </code> or custom values can be specified.  </p>
-		<h4>Use cases</h4>
-		<p>In control systems, hysteresis can be used to filter signals so that the output reacts less rapidly than it otherwise would, by taking recent history 
-		into account. For example, a thermostat controlling a heater may switch the heater on when the temperature drops below A, but not turn it off until 
-		the temperature rises above B. For instance, if one wishes to maintain a temperature of 20 °C then one might set the thermostat to turn the heater on 
-		when the temperature drops to below 18 °C and off when the temperature exceeds 22 °C.</p> 
-		<p>Similarly, a pressure switch can be designed to exhibit hysteresis, with pressure set-points substituted for temperature thresholds.</p>
+    <p>Provides a hysteresis or deadband function to prevent rapid output changes based on fluctuating input values.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">number</span></dt>
+        <dd>The numeric value to check against the thresholds. Non-numeric payloads are ignored.</dd>
+        <dt class="optional">topic <span class="property-type">string</span></dt>
+        <dd>In <b>Dynamic Mode</b>, the topic distinguishes between <code>Threshold Topic</code> (used to set the center point) and <code>Input Value Topic</code> (used to provide the value to check).</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload</dt>
+        <dd>The output payload sent only when a threshold crossing causes a state change (Low -> High or High -> Low). Can be the original input payload or a configured constant (String, Number, Boolean, JSON).</dd>
+        <dt>topic <span class="property-type">string</span></dt>
+        <dd>The output topic. Can be set to the original input topic or a configured static string.</dd>
+        <dt>hystdirection <span class="property-type">string</span></dt>
+        <dd>Added to the output message. Indicates why the output was triggered: <code>"initial high"</code>, <code>"initial low"</code> (only if "Send Output on Initial State" is checked), <code>"rising"</code> (state changed Low/Deadband -> High), or <code>"falling"</code> (state changed High/Deadband -> Low).</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>This node implements hysteresis logic. After initialization or deployment, it determines its internal state (High, Low, or Deadband) based on the first valid numeric input received, comparing it to the configured thresholds.</p>
+    <p>Subsequently, it only sends an output message when the input value crosses a threshold that results in a change of state:</p>
+    <ul>
+        <li>If the current state is <b>Low</b> or <b>Deadband</b> and the input meets or exceeds the <b>Upper Threshold</b>, the node sends a message (<code>hystdirection: "rising"</code>) and switches its internal state to <b>High</b>.</li>
+        <li>If the current state is <b>High</b> or <b>Deadband</b> and the input meets or falls below the <b>Lower Threshold</b>, the node sends a message (<code>hystdirection: "falling"</code>) and switches its internal state to <b>Low</b>.</li>
+        <li>If the input remains within the dead band, or moves further away from the dead band without changing state (e.g., already High and value increases), no message is sent, but the node's visual status is updated.</li>
+    </ul>
+
+    <h4>Mode: Fixed vs Dynamic Thresholds</h4>
+    <p>Configure the threshold behavior in the node's settings:</p>
+    <h5>Fixed Thresholds</h5>
+    <ul>
+        <li><b>Upper Threshold:</b> A static numeric value.</li>
+        <li><b>Lower Threshold:</b> A static numeric value. Must be less than the Upper Threshold for the node to be active.</li>
+    </ul>
+
+    <h5>Dynamic Thresholds (via msg)</h5>
+    <p>Thresholds are calculated based on messages received on specific topics:</p>
+    <ul>
+        <li><b>Threshold Topic:</b> The required topic of messages whose <code>msg.payload</code> (number) sets the <i>center point</i> for the dynamic thresholds.</li>
+        <li><b>Hysteresis (+):</b> A non-negative number added to the center point to compute the Upper Threshold.</li>
+        <li><b>Hysteresis (-):</b> A non-negative number subtracted from the center point to compute the Lower Threshold.</li>
+        <li><b>Input Value Topic:</b> The required topic of messages whose <code>msg.payload</code> (number) provides the value to be evaluated against the thresholds.</li>
+        <li><b>Error if Threshold Missing:</b> If checked, an error is raised if an input value arrives on the <code>Input Value Topic</code> before valid dynamic thresholds have been established via the <code>Threshold Topic</code>. If unchecked, the message is ignored with a warning.</li>
+        <li><b>Note:</b> Dynamic thresholds are <i>not persisted</i> across Node-RED deploys or restarts and must be reset by sending a message to the <code>Threshold Topic</code>.</li>
+    </ul>
+
+    <h4>Output Settings</h4>
+    <ul>
+        <li><b>Send Output on Initial State:</b> This checkbox controls whether an output message is sent if the <i>very first</i> valid input value after deployment is already above the upper threshold or below the lower threshold.
+            <ul><li>If checked: An output message (with <code>hystdirection: "initial high/low"</code>) is sent.</li></ul>
+            <ul><li>If unchecked: No output message is sent for the first input, even if it's outside the deadband.</li></ul>
+            The node's internal state (High, Low, or Deadband) is determined and tracked correctly based on the first input <i>regardless</i> of this setting.</li>
+        <li><b>Output Payload (Rising/Falling):</b> Configure the <code>msg.payload</code> for outputs triggered by rising (Low/Deadband -> High) or falling (High/Deadband -> Low) transitions. Options include 'Original Payload' or a fixed String, Number, Boolean, or JSON value.</li>
+        <li><b>Output Topic:</b> Configure the <code>msg.topic</code> for output messages. Options include 'Original Topic' or a fixed String value.</li>
+    </ul>
+
+    <h4>Status Monitoring</h4>
+    <p>The node's visual status provides detailed real-time feedback on its state and the input value's relation to thresholds. Example status texts:</p>
+    <ul>
+        <li><code>Error: Invalid Fixed Thresholds</code></li>
+        <li><code>waiting for threshold topic</code></li>
+        <li><code>waiting for input</code></li>
+        <li><code>R:22 F:18 Val:17 (Initial Deadband)</code></li>
+        <li><code>R:22 F:18 Val:23 (initial high band)</code></li>
+        <li><code>R:22 F:18 Val:17 (initial low band)</code></li>
+        <li><code>R:22 F:18 Val:25 (high band rising)</code></li>
+        <li><code>R:22 F:18 Val:15 (low band falling)</code></li>
+        <li><code>R:22 F:18 Val:20 (high dead band falling)</code></li>
+        <li><code>R:22 F:18 Val:19 (low dead band rising)</code></li>
+    </ul>
+    <p>Use the standard Node-RED <code>Status</code> node configured to monitor this Hysteresis node if downstream flows need to react to these specific status conditions (especially the initial deadband state, which does not produce an output message).</p>
+
+    <h4>Use Cases</h4>
+    <ul>
+        <li><b>Thermostat:</b> Turn heating on below 18°C and off above 22°C.</li>
+        <li><b>Tank Level Control:</b> Start pump below 20%, stop above 80%.</li>
+        <li><b>Signal Debouncing:</b> Ignore noise around a setpoint.</li>
+    </ul>
 </script>

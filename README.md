@@ -2,51 +2,99 @@
 
 [![npm version](https://badge.fury.io/js/node-red-contrib-hysteresis.svg)](https://badge.fury.io/js/node-red-contrib-hysteresis)
 
-Provides a hysteresis or deadband function.
+A Node-RED node that provides a hysteresis (deadband) function, preventing rapid output changes based on fluctuating input values.
 
-## Details
+## Key Features
 
-When a message arrives, the node will evaluate if the `msg.payload` is above a defined `Upper Threshold` or below a `Lower Threshold`, while taking into account the previous value. Whenever this happens a `msg` is send to the output. Following rules do apply:
+* **Hysteresis Logic:** Only outputs a message when the input value crosses a threshold *and* changes the node's state (e.g., from Low to High).
+* **Fixed or Dynamic Thresholds:** Configure static thresholds or set them dynamically via input messages.
+* **State Persistence:** Remembers its last state (High/Low/Deadband) and the last input value across deploys (if context storage is enabled). Dynamic thresholds are *not* persisted.
+* **Initial State Handling:** Correctly determines the initial state (High, Low, or Deadband) based on the first input after deployment, regardless of the "Send Output on Initial State" setting.
+* **Detailed Status Updates:** Provides granular visual status feedback about the current state, thresholds, input value, and direction of change.
+* **Configurable Output:** Control the payload and topic of the output message.
 
-*   `msg.payload` is greater than previous `msg.payload` AND `msg.payload` greater or equal `Upper Threshold` then send output
-*   `msg.payload` is lesser than previous `msg.payload` AND `msg.payload` lesser or equal `Lower Threshold` then send output
-*   `msg.payload` is greater than `Lower Threshold` but lower than `Upper Threshold` do nothing
-*   Once a threshold has been hit, no new output will be send until the respective opposite threshold is triggered
+## Installation
 
-## Fixed versus Dynamic Thresholds
+Install via Node Red's Pallet or run the following command in your Node-RED user directory (typically `~/.node-red`):
 
-In the node settings either fixed or dynamic threshold can be specified.
+```bash
+npm install node-red-contrib-hysteresis
+```
 
-### Fixed Thresholds
+## Inputs
 
-Fixed thresholds allows to directly specify a `Upper Threshold` and `Lower Threshold`. Both values have to be valid float numbers.
+* **`msg.payload`** (*number*): The numeric input value to be checked against the thresholds. Non-numeric payloads are ignored.
+* **`msg.topic`** (*string, optional*):
+  * In **Dynamic Mode**, the topic distinguishes messages:
+    * Messages with the configured `Threshold Topic` set the center point (using `msg.payload`).
+    * Messages with the configured `Input Value Topic` provide the value to check (using `msg.payload`).
+  * In **Fixed Mode**, the topic is usually ignored by the node but passed through if the output topic is set to 'Original Topic'.
 
-### Dynamic Thresholds
+## Outputs
 
-Dynamic thresholds expect following settings:
+An output message is sent *only* when a threshold crossing causes a state change (Low -> High, High -> Low, Deadband -> High, Deadband -> Low).
 
-*   `Topic Threshold` specifies a message topic under which a triggering point is send as `msg.payload`.
-*   `Topic Current` specifies a message topic under which the current values are send. This values are then matched against the respective thresholds.
-*   `Hysteresis+` is the upper delta for the triggering point. The `msg.payload` from `Threshold Topic` plus the `Hysteresis+` value equals the `Upper Threshold`.
-*   `Hysteresis-` is the lower delta for the triggering point. The `msg.payload` from `Threshold Topic` minus the `Hysteresis-` value equals the `Lower Threshold`.
-*   `Raise error on missing threshold` will create an error object in case the threshold is missing and `Topic Current` value arrives. This can be handled via a  `Catch` node. Also see the included examples 
+1. **Primary Output:**
+  * **`msg.payload`**: The configured output payload for the specific transition (Rising or Falling). Can be the original input payload or a fixed String, Number, Boolean, or JSON value.
+  * **`msg.topic`** (*string*): The configured output topic. Can be the original input topic or a fixed String value.
+  * **`msg.hystdirection`** (*string*): Indicates the reason for the output message:
+    * `"initial high"` / `"initial low"`: Sent for the *first* input value if it crosses a threshold *and* "Send Output on Initial State" is enabled.
+    * `"rising"`: State changed from Low or Deadband to High.
+    * `"falling"`: State changed from High or Deadband to Low.
 
-**Note:** 
-The values set in dynamic mode will typically not survive a node-red deploy or restart. With version **0.3.0** the node will save all relevant settings as context. Using a persistent context store, e.g. file, will allow the node to recover these values and continue from there.
+## Node Configuration
 
-## Send initial message
+### Threshold Settings
 
-After starting node-red or deploying the flow, the hysteresis node does not know any previous values nor is able to determine the direction how the values develop. `Send initial message` will simply match the first valid value against the lower or upper limit and send an output if any of the levels is exceeded respectively underran.
+* **Mode**: Choose between `Fixed Thresholds` or `Dynamic Thresholds (via msg)`.
 
-## Output Options
+#### Fixed Thresholds Mode
 
-In the node Output settings either `Original Payload / Topic` or custom values can be specified.
+* **Upper Threshold**: The static numeric value the input must meet or exceed to trigger a 'high' state (when coming from 'low' or 'deadband').
+* **Lower Threshold**: The static numeric value the input must meet or fall below to trigger a 'low' state (when coming from 'high' or 'deadband').
+  * *Constraint:* The Upper Threshold must be strictly greater than the Lower Threshold.
+
+#### Dynamic Thresholds Mode
+
+Thresholds are calculated based on runtime messages.
+
+* **Threshold Topic**: *Required topic* for messages whose `msg.payload` (number) sets the center point for calculations.
+* **Input Value Topic**: *Required topic* for messages whose `msg.payload` (number) is the value to check against the calculated thresholds.
+* **Hysteresis (+)**: A non-negative number added to the center point to calculate the dynamic Upper Threshold.
+* **Hysteresis (-)**: A non-negative number subtracted from the center point to calculate the dynamic Lower Threshold.
+* **Error if Threshold Missing**: If checked, an error is raised if a value arrives on the `Input Value Topic` before valid dynamic thresholds have been set via the `Threshold Topic`. Otherwise, a warning is logged, and the message is ignored.
+* **Note on Persistence**: Dynamic thresholds (Upper and Lower) calculated from incoming messages are **not saved** across Node-RED deploys or restarts. The node will start without valid dynamic thresholds and require a new message on the `Threshold Topic`.
+
+### Output Settings
+
+* **Send Output on Initial State**:
+  * If checked: Sends an output message if the *very first* valid input after deployment is already above the Upper or below the Lower threshold.
+  * If unchecked: Sends no output for the first input, even if it's outside the deadband.
+  * *Note:* The node's internal state (High, Low, or Deadband) is *always* determined and tracked based on the first input, regardless of this setting.
+* **Output Payload (Rising/Falling)**: Configure the `msg.payload` for messages sent when transitioning to the High state (Rising) or Low state (Falling). Options: 'Original Payload', String, Number, Boolean, JSON.
+* **Output Topic**: Configure the `msg.topic` for output messages. Options: 'Original Topic' or a fixed String value.
 
 ## Node Status
-The node makes extensive use of status information. These can be used to react on status changes with the `Status` node. Also see the included examples for a how-to.
 
-## Use cases
+The node provides detailed visual status updates, useful for monitoring and debugging. Examples include:
 
-In control systems, hysteresis can be used to filter signals so that the output reacts less rapidly than it otherwise would, by taking recent history into account. For example, a thermostat controlling a heater may switch the heater on when the temperature drops below A, but not turn it off until the temperature rises above B. For instance, if one wishes to maintain a temperature of 20 °C then one might set the thermostat to turn the heater on when the temperature drops to below 18 °C and off when the temperature exceeds 22 °C.
+* `Error: Invalid Fixed Thresholds`
+* `waiting for threshold topic`
+* `waiting for input`
+* `R:22 F:18 Val:20 (Initial Deadband)`
+* `R:22 F:18 Val:23 (initial high band)` (*Only if output sent*)
+* `R:22 F:18 Val:17 (initial low band)` (*Only if output sent*)
+* `R:22 F:18 Val:25 (high band rising)` (*Value increasing, still high*)
+* `R:22 F:18 Val:15 (low band falling)` (*Value decreasing, still low*)
+* `R:22 F:18 Val:20 (high dead band falling)` (*Value fell into deadband from high*)
+* `R:22 F:18 Val:19 (low dead band rising)` (*Value rose into deadband from low*)
+* `R:22 F:18 Val:24 (high band)` (*Output sent for Low->High transition*)
+* `R:22 F:18 Val:16 (low band)` (*Output sent for High->Low transition*)
 
-Similarly, a pressure switch can be designed to exhibit hysteresis, with pressure set-points substituted for temperature thresholds.
+You can use the standard Node-RED `Status` node to monitor this node and trigger flows based on specific status text (e.g., reacting to the `(Initial Deadband)` state).
+
+## Use Cases
+
+* **Thermostat Control:** Turn heating on below 18°C, off above 22°C.
+* **Tank Level / Pump Control:** Start pump below 20%, stop above 80%.
+* **Signal Debouncing / Filtering:** Ignore minor sensor noise around a threshold. Only react to significant changes.
