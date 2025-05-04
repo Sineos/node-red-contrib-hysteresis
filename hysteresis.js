@@ -1,25 +1,5 @@
-module.exports = function(RED) {
-    // Helper to parse configured output values from strings
-    function parseOutValue(type, valueStr) {
-        const strValue = String(valueStr); // Ensure string type for checks
-
-        if (type === 'num') {
-            const num = Number.parseFloat(strValue);
-
-            return !Number.isNaN(num) ? num : undefined;
-        }
-        if (type === 'bool') {
-            if (strValue === 'true') return true;
-            if (strValue === 'false') return false;
-            
-            return undefined;
-        }
-        if (strValue === 'null') {
-            return null;
-        }
-        
-        return strValue; // Default to string
-    }
+module.exports = function (RED) {
+    'use strict';
 
     function HysteresisNode(config) {
         RED.nodes.createNode(this, config);
@@ -28,272 +8,247 @@ module.exports = function(RED) {
         // --- Configuration Processing & Validation ---
         const name = config.name;
         const thresholdType = config.ThresholdType || 'fixed';
-        const initialMessageFlag = config.InitialMessage === true || config.InitialMessage === 'true';
-        const dynRaiseError = config.DynRaiseError === true || config.DynRaiseError === 'true';
+        const initialMessageFlag = config.InitialMessage === true;
+        const dynRaiseError = config.DynRaiseError === true;
+
+        const thresholdRisingType = config.ThresholdRisingType || 'num';
+        const thresholdRisingValue = config.ThresholdRising;
+        const thresholdFallingType = config.ThresholdFallingType || 'num';
+        const thresholdFallingValue = config.ThresholdFalling;
+
         const topicThreshold = config.TopicThreshold;
         const topicCurrent = config.TopicCurrent;
-        const outRisingType = config.OutRisingType;
-        const outRisingValueStr = config.OutRisingValue;
-        const outFallingType = config.OutFallingType;
-        const outFallingValueStr = config.OutFallingValue;
-        const outTopicType = config.OutTopicType;
+        let deltaR = parseFloat(config.ThresholdDeltaRising);
+        let deltaF = parseFloat(config.ThresholdDeltaFalling);
+        const deltasValid = !(Number.isNaN(deltaR) || Number.isNaN(deltaF) || deltaR < 0 || deltaF < 0);
+        if (!deltasValid && thresholdType === 'dynamic') {
+            node.warn(`Invalid dynamic threshold deltas configured (D+='${config.ThresholdDeltaRising}', D-='${config.ThresholdDeltaFalling}'). Must be non-negative numbers.`);
+            deltaR = NaN; deltaF = NaN;
+        } else if (thresholdType === 'dynamic' && !topicThreshold) {
+            node.warn("Dynamic mode selected but no Threshold Topic configured.");
+        }
+        if (thresholdType === 'dynamic' && topicThreshold) {
+            node.warn(`Dynamic thresholds must be resent via topic '${topicThreshold}' after deploy/restart.`);
+        }
+
+        const outRisingType = config.OutRisingType || 'pay';
+        const outRisingValue = config.OutRisingValue;
+        const outFallingType = config.OutFallingType || 'pay';
+        const outFallingValue = config.OutFallingValue;
+        const outTopicType = config.OutTopicType || 'msg'; // Output topic source: 'msg', 'str', etc.
         const outTopicValue = config.OutTopicValue;
-        const outRisingValueParsed = outRisingType !== 'pay' ? parseOutValue(outRisingType, outRisingValueStr) : undefined;
-        const outFallingValueParsed = outFallingType !== 'pay' ? parseOutValue(outFallingType, outFallingValueStr) : undefined;
 
         // --- State Variables ---
         const nodeContext = node.context();
-        let rising = Number.NaN; 
-        let falling = Number.NaN; 
-        let thresholdsValid = false;
-        let deltaR = Number.NaN; 
-        let deltaF = Number.NaN;
-        // Load persistent state, initialize direction to null if not found
-        
+        let dynamicRising = NaN;
+        let dynamicFalling = NaN;
+        let dynamicThresholdsValid = false;
 
-        node.direction = nodeContext.get('Direction') || null; // Can be 'high', 'low', 'deadband', or null
-        node.lastValue = nodeContext.get('LastValue');
+        node.direction = nodeContext.get('Direction') ?? null;
+        node.lastValue = nodeContext.get('LastValue') ?? null;
 
-        // --- Initialize Thresholds based on Mode ---
-        if (thresholdType === 'fixed') {
-            const tr = Number.parseFloat(config.ThresholdRising);
-            const tf = Number.parseFloat(config.ThresholdFalling);
-
-            if (!Number.isNaN(tr) && !Number.isNaN(tf) && tr > tf) {
-                rising = tr; falling = tf; thresholdsValid = true;
-            } else {
-                node.warn('Invalid fixed thresholds configured.'); 
+        // --- Status Tracking ---
+        let lastStatusText = '';
+        function setStatusSafely(status) {
+            const newText = status?.text || '';
+            if (newText !== lastStatusText) {
+                node.status(status);
+                lastStatusText = newText;
             }
-        } else { // Dynamic mode
-            deltaR = Number.parseFloat(config.ThresholdDeltaRising);
-            deltaF = Number.parseFloat(config.ThresholdDeltaFalling);
-            if (Number.isNaN(deltaR) || Number.isNaN(deltaF) || deltaR < 0 || deltaF < 0) {
-                node.warn(`Invalid dynamic deltas (D+='${config.ThresholdDeltaRising}', D-='${config.ThresholdDeltaFalling}'). Must be non-negative numbers.`);
-                deltaR = Number.NaN; deltaF = Number.NaN; // Ensure invalid
-            } else if (!topicThreshold) {
-                node.warn('Dynamic mode selected but no Threshold Topic configured.');
-            }
-            if (topicThreshold) {
-                node.warn(`Dynamic thresholds must be resent via topic '${topicThreshold}' after deploy/restart.`);
-            }
-            // thresholdsValid remains false until first dynamic update
         }
-
-        // --- Set Initial Visual Status ---
-        // (More detailed status set within input handler)
-        if (!thresholdsValid && thresholdType === 'fixed') {
-            node.status({ fill: 'red', shape: 'ring', text: 'Error: Invalid Fixed Thresholds' });
-        } else if (!thresholdsValid && thresholdType === 'dynamic' && (Number.isNaN(deltaR) || Number.isNaN(deltaF))) {
-            node.status({ fill: 'red', shape: 'ring', text: 'Error: Invalid Deltas' });
-        } else if (!thresholdsValid && thresholdType === 'dynamic') {
-            node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for threshold topic' });
-        } else if (node.direction === null) {
-            node.status({ fill: 'grey', shape: 'ring', text: 'waiting for input' });
-        } else { // Restore status based on persisted state
-            const stateText = node.direction === 'deadband' ? 'Deadband' : (node.direction === 'high' ? 'High' : 'Low');
-            const shape = node.direction === 'deadband' ? 'ring' : 'dot';
-            const fill = node.direction === 'high' ? 'green' : (node.direction === 'low' ? 'blue' : 'yellow');
-
-            node.status({ fill, shape, text: `R:${rising} F:${falling} (${stateText})` });
-        }
-
+        setStatusSafely({ fill: 'grey', shape: 'ring', text: 'waiting for input' });
 
         // --- Input Message Handler ---
-        node.on('input', (msg, send, done) => {
-            const payload = Number.parseFloat(msg.payload);
+        node.on('input', function (msg, send, done) {
 
+            const payload = parseFloat(msg.payload);
             if (Number.isNaN(payload)) {
-                return done(); 
+                node.warn("Input payload is not a number, ignoring.");
+                return done();
             }
 
-            // --- 1. Handle Dynamic Threshold Update ---
+            // --- Handle Dynamic Threshold Update ---
             if (thresholdType === 'dynamic' && msg.topic === topicThreshold) {
-                if (Number.isNaN(deltaR) || Number.isNaN(deltaF)) {
-                    node.warn('Cannot update dynamic thresholds: Invalid deltas configured.'); 
+                if (!deltasValid) {
+                    node.warn("Cannot update dynamic thresholds: Invalid deltas configured.");
                 } else {
                     const centerValue = payload;
                     const newRising = centerValue + deltaR;
                     const newFalling = centerValue - deltaF;
-
                     if (newRising > newFalling) {
-                        rising = newRising; falling = newFalling; thresholdsValid = true;
-                        node.log(`Dynamic thresholds updated: R=${rising}, F=${falling}`);
-                        node.status({ fill: 'yellow', shape: 'ring', text: `${falling}/--/${rising}` });
+                        dynamicRising = newRising;
+                        dynamicFalling = newFalling;
+                        dynamicThresholdsValid = true;
+                        node.log(`Dynamic thresholds updated: R=${dynamicRising}, F=${dynamicFalling}`);
+                        setStatusSafely({ fill: 'yellow', shape: 'ring', text: `${dynamicFalling}/--/${dynamicRising}` });
                     } else {
-                        thresholdsValid = false; rising = Number.NaN; falling = Number.NaN;
-                        node.status({ fill: 'red', shape: 'dot', text: 'invalid calculated thresholds' });
+                        dynamicThresholdsValid = false;
+                        dynamicRising = NaN; dynamicFalling = NaN;
+                        setStatusSafely({ fill: 'red', shape: 'dot', text: 'invalid calculated thresholds' });
                         node.warn(`Dynamic calc invalid: Upper (${newRising}) !> Lower (${newFalling}).`);
                     }
                 }
-                
-                return done(); // Stop processing for threshold updates
+                return done();
             }
 
-            // --- 2. Check if Thresholds are Valid Before Value Processing ---
-            if (!thresholdsValid) {
-                if (thresholdType === 'dynamic' && msg.topic === topicCurrent) {
-                    if (dynRaiseError) {
+            // --- Evaluate Thresholds (Fixed or Dynamic) ---
+            let currentRising = NaN;
+            let currentFalling = NaN;
+            let currentThresholdsValid = false;
+
+            const evaluateAndProcess = (risingVal, fallingVal) => {
+                currentRising = parseFloat(risingVal);
+                currentFalling = parseFloat(fallingVal);
+
+                if (!Number.isNaN(currentRising) && !Number.isNaN(currentFalling) && currentRising > currentFalling) {
+                    currentThresholdsValid = true;
+                } else {
+                    currentThresholdsValid = false;
+                    node.warn(`Threshold logic error: R='${risingVal}', F='${fallingVal}'`);
+                }
+                processHysteresisLogic(msg, payload, send, done);
+            };
+
+            if (thresholdType === 'fixed') {
+                RED.util.evaluateNodeProperty(thresholdRisingValue, thresholdRisingType, node, msg, (errR, valR) => {
+                    if (errR) {
+                        node.error(`Error evaluating Upper Threshold: ${errR.message}`, msg);
+                        return processHysteresisLogic(msg, payload, send, done);
+                    }
+                    RED.util.evaluateNodeProperty(thresholdFallingValue, thresholdFallingType, node, msg, (errF, valF) => {
+                        if (errF) {
+                            node.error(`Error evaluating Lower Threshold: ${errF.message}`, msg);
+                            return processHysteresisLogic(msg, payload, send, done);
+                        }
+                        evaluateAndProcess(valR, valF);
+                    });
+                });
+            } else if (thresholdType === 'dynamic') {
+                if (msg.topic === topicCurrent) {
+                    if (dynamicThresholdsValid) {
+                        evaluateAndProcess(dynamicRising, dynamicFalling);
+                    } else if (dynRaiseError) {
                         const err = new Error(`Hysteresis check failed: Dynamic thresholds not established or invalid.`);
-
-                        node.status({ fill: 'red', shape: 'ring', text: 'Error: Thresholds missing' });
-                        if (done) {
-                            done(err); 
-                        } else {
-                            node.error(err, msg); 
-                        }
-                        
-                        return;
+                        setStatusSafely({ fill: 'red', shape: 'ring', text: 'Error: Thresholds missing' });
+                        return done ? done(err) : node.error(err, msg);
                     } else {
-                        node.warn(`Ignoring input value on topic '${topicCurrent}': Dynamic thresholds not established or invalid.`); 
+                        node.warn(`Ignoring input value on topic '${topicCurrent}': Dynamic thresholds not established or invalid.`);
+                        return done();
                     }
-                } else if (thresholdType === 'fixed') {
-                    node.warn('Ignoring input value: Fixed thresholds are invalid.'); 
-                }
-                
-                return done(); // Cannot process value if thresholds invalid
-            }
-
-            // --- 3. Check if Message is the Value Input ---
-            const isValueInput = (thresholdType === 'fixed') || (thresholdType === 'dynamic' && msg.topic === topicCurrent);
-
-            if (!isValueInput) {
-                return done(); 
-            }
-
-            // --- 4. Core Hysteresis Logic ---
-            const previousValue = node.lastValue;
-            // isInitial: check if direction is null (never set)
-            const isInitial = node.direction === null;
-            const currentDirection = node.direction; // 'high', 'low', 'deadband', or null
-            let newDirection = null; // Determined new state ('high', 'low', 'deadband')
-            let messageToSend = null; // Prepared output message
-            let statusOptions = null; // Specific status for this input
-
-            // --- Determine State / Action ---
-            if (isInitial) {
-                // First value processing
-                if (payload >= rising) {
-                    newDirection = 'high';
-                    statusOptions = { fill: 'green', shape: 'dot', text: `${falling}/${payload}/${rising} (initial high band)` };
-                } else if (payload <= falling) {
-                    newDirection = 'low';
-                    statusOptions = { fill: 'blue', shape: 'dot', text: `${falling}/${payload}/${rising} (initial low band)` };
                 } else {
-                    // Initial value is in the dead band - SET state to deadband
-                    newDirection = 'deadband'; // Explicitly set initial deadband state
-                    node.lastValue = payload;
-                    nodeContext.set('LastValue', node.lastValue);
-                    node.direction = newDirection; // Update internal state
-                    nodeContext.set('Direction', node.direction); // Persist deadband state
-                    node.status({ fill: 'yellow', shape: 'ring', text: `${falling}/${payload}/${rising} (Initial Deadband)` });
-                    
-                    return done(); // Stop processing, no output sent
-                }
-                // If initial state is high or low, prepare the message
-                if (newDirection === 'high' || newDirection === 'low') {
-                    const msgNew = RED.util.cloneMessage(msg);
-
-                    if (outTopicType === 'str' && typeof outTopicValue === 'string') {
-                        msgNew.topic = outTopicValue; 
-                    }
-                    msgNew.payload = (newDirection === 'high') ? (outRisingType === 'pay' ? payload : outRisingValueParsed) : (outFallingType === 'pay' ? payload : outFallingValueParsed);
-                    msgNew.hystdirection = `initial ${newDirection}`;
-                    messageToSend = msgNew;
-                }
-            } else { // Standard processing (node.direction is 'high', 'low', or 'deadband')
-                // Check for state-changing threshold crossings (INCLUDING from 'deadband')
-                if ((currentDirection === 'low' || currentDirection === 'deadband') && payload >= rising) {
-                    newDirection = 'high';
-                    statusOptions = { fill: 'green', shape: 'dot', text: `${falling}/${payload}/${rising} (high band)` };
-                } else if ((currentDirection === 'high' || currentDirection === 'deadband') && payload <= falling) {
-                    newDirection = 'low';
-                    statusOptions = { fill: 'blue', shape: 'dot', text: `${falling}/${payload}/${rising} (low band)` };
-                }
-
-                // If state changed, prepare output message
-                if (newDirection !== null) {
-                    const msgNew = RED.util.cloneMessage(msg);
-
-                    if (outTopicType === 'str' && typeof outTopicValue === 'string') {
-                        msgNew.topic = outTopicValue; 
-                    }
-                    msgNew.payload = (newDirection === 'high') ? (outRisingType === 'pay' ? payload : outRisingValueParsed) : (outFallingType === 'pay' ? payload : outFallingValueParsed);
-                    // Direction is just 'high' or 'low' for subsequent changes
-                    msgNew.hystdirection = newDirection;
-                    messageToSend = msgNew;
-                } else {
-                    // --- No State Change - Set Detailed Status (like original) ---
-                    // Only provide detailed rising/falling if current state is high or low
-                    if (currentDirection === 'high' || currentDirection === 'low') {
-                        const isRising = (typeof previousValue === 'number' && payload > previousValue);
-                        const isFalling = (typeof previousValue === 'number' && payload < previousValue);
-                        const moveText = isRising ? 'rising' : (isFalling ? 'falling' : 'steady'); // Add steady case
-                        const directionText = currentDirection; // 'high' or 'low'
-                        const fillColor = currentDirection === 'high' ? 'green' : 'blue';
-
-                        if (payload >= rising || payload <= falling) { // Still outside dead band
-                            statusOptions = { fill: fillColor, shape: 'dot', text: `${falling}/${payload}/${rising} (${directionText} band ${moveText})` };
-                        } else { // Inside dead band (but state didn't change)
-                            statusOptions = { fill: fillColor, shape: 'ring', text: `${falling}/${payload}/${rising} (${directionText} dead band ${moveText})` };
-                        }
-                    } else if (currentDirection === 'deadband') {
-                        // If still in deadband after starting in deadband
-                        statusOptions = { fill: 'yellow', shape: 'ring', text: `${falling}/${payload}/${rising} (Deadband)` };
-                    }
-
-                    // Update status, last value, and finish (no message sent)
-                    if (statusOptions) node.status(statusOptions);
-                    node.lastValue = payload;
-                    nodeContext.set('LastValue', node.lastValue);
-                    
                     return done();
                 }
+            } else {
+                return done();
             }
 
-            // --- 5. Send Output (Conditionally based on InitialMessage flag) ---
-            let shouldSend = false;
+            // --- Core Hysteresis Logic ---
+            function processHysteresisLogic(_msg, _payload, _send, _done) {
+                if (!currentThresholdsValid) {
+                    setStatusSafely({ fill: 'red', shape: 'ring', text: 'Error: Invalid Thresholds' });
+                    return _done();
+                }
 
-            if (messageToSend !== null) { // A message was prepared (threshold crossed)
-                // Only apply flag if it was the very first determination (isInitial was true)
-                shouldSend = isInitial ? initialMessageFlag : true;
-            }
+                const prevDirection = node.direction;
+                const prevValue = node.lastValue;
+                const isInitial = prevDirection === null;
+                let newDirection = null;
+                let outputConfig = null;
+                let status = null;
+                let tag = '';
 
-            if (shouldSend) {
-                send(messageToSend);
-            }
+                if (isInitial) {
+                    if (_payload >= currentRising) {
+                        newDirection = 'high';
+                        outputConfig = { type: outRisingType, value: outRisingValue };
+                        status = { fill: 'green', shape: 'dot', text: `${currentFalling}/${_payload}/${currentRising} (initial high band)` };
+                        tag = 'initial high';
+                    } else if (_payload <= currentFalling) {
+                        newDirection = 'low';
+                        outputConfig = { type: outFallingType, value: outFallingValue };
+                        status = { fill: 'blue', shape: 'dot', text: `${currentFalling}/${_payload}/${currentRising} (initial low band)` };
+                        tag = 'initial low';
+                    } else {
+                        newDirection = 'deadband';
+                        status = { fill: 'yellow', shape: 'ring', text: `${currentFalling}/${_payload}/${currentRising} (Initial Deadband)` };
+                    }
+                } else {
+                    if ((prevDirection === 'low' || prevDirection === 'deadband') && _payload >= currentRising) {
+                        newDirection = 'high';
+                        outputConfig = { type: outRisingType, value: outRisingValue };
+                        status = { fill: 'green', shape: 'dot', text: `${currentFalling}/${_payload}/${currentRising} (high band)` };
+                        tag = 'rising';
+                    } else if ((prevDirection === 'high' || prevDirection === 'deadband') && _payload <= currentFalling) {
+                        newDirection = 'low';
+                        outputConfig = { type: outFallingType, value: outFallingValue };
+                        status = { fill: 'blue', shape: 'dot', text: `${currentFalling}/${_payload}/${currentRising} (low band)` };
+                        tag = 'falling';
+                    } else {
+                        const move = typeof prevValue === 'number' ? (_payload > prevValue ? 'rising' : (_payload < prevValue ? 'falling' : 'steady')) : 'unknown';
+                        const dir = prevDirection;
+                        const fill = dir === 'high' ? 'green' : 'blue';
+                        const shape = (_payload >= currentRising || _payload <= currentFalling) ? 'dot' : 'ring';
+                        const text = `${currentFalling}/${_payload}/${currentRising} (${dir} ${shape === 'dot' ? 'band' : 'dead band'} ${move})`;
+                        setStatusSafely({ fill, shape, text });
+                        node.lastValue = _payload;
+                        nodeContext.set('LastValue', _payload);
+                        return _done();
+                    }
+                }
 
-            // --- 6. Update State & Persistence (if direction determined/changed) ---
-            if (newDirection !== null) {
-                node.direction = newDirection; // Update in-memory state ('high' or 'low' only here)
-                // Persist direction state *only if it changed* from previous state (could be null, deadband, high, low)
-                if (newDirection !== currentDirection) {
-                    nodeContext.set('Direction', node.direction);
+                const shouldSend = newDirection !== 'deadband' && (isInitial ? initialMessageFlag : true);
+
+                if (shouldSend && outputConfig) {
+                    const msgOut = RED.util.cloneMessage(_msg);
+                    msgOut.hystdirection = tag;
+
+                    RED.util.evaluateNodeProperty(outTopicValue, outTopicType, node, _msg, (errT, valT) => {
+                        if (errT) {
+                            node.error(`Error evaluating Output Topic: ${errT.message}`, _msg);
+                            finalize();
+                            return;
+                        }
+                        msgOut.topic = valT;
+
+                        if (outputConfig.type === 'pay' || outputConfig.type === 'msg') {
+                            msgOut.payload = _payload;
+                            _send(msgOut);
+                            finalize();
+                        } else {
+                            RED.util.evaluateNodeProperty(outputConfig.value, outputConfig.type, node, _msg, (errP, valP) => {
+                                if (errP) {
+                                    node.error(`Error evaluating Output Payload: ${errP.message}`, _msg);
+                                } else {
+                                    msgOut.payload = valP;
+                                    _send(msgOut);
+                                }
+                                finalize();
+                            });
+                        }
+                    });
+                } else {
+                    finalize();
+                }
+
+                function finalize() {
+                    if (newDirection !== null && newDirection !== prevDirection) {
+                        node.direction = newDirection;
+                        nodeContext.set('Direction', newDirection);
+                    }
+                    node.lastValue = _payload;
+                    nodeContext.set('LastValue', _payload);
+                    setStatusSafely(status);
+                    _done();
                 }
             }
-            // Always update and persist last value processed
-            node.lastValue = payload;
-            nodeContext.set('LastValue', node.lastValue);
+        });
 
-            // Set final status for this message processing
-            if (statusOptions) { // Use status determined earlier
-                node.status(statusOptions);
-            } else if (newDirection) { // Fallback if statusOptions wasn't set but state changed (shouldn't happen)
-                node.status({ fill: 'grey', shape: 'dot', text: `processed - ${newDirection}` });
-            }
-
-            // Finalize
-            if (done) {
-                done(); 
-            }
-        }); // End node.on('input')
-
-        // --- Node Closure ---
-        node.on('close', (removed, done) => {
-            node.log('Hysteresis node stopped.');
-            node.status({}); // Clear status
+        node.on('close', function (removed, done) {
+            node.log("Hysteresis node stopped.");
+            node.status({});
             done();
         });
-    } // End HysteresisNode constructor
+    }
 
     RED.nodes.registerType('hysteresis', HysteresisNode);
-}; // End module.exports
+};
