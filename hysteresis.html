@@ -111,11 +111,11 @@
 </script>
 
 <script type="text/x-red" data-template-name="hysteresis">
-    <div class="form-row">
-        <label for="node-input-name" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div class="form-row" style="white-space: nowrap;">
+        <label for="node-input-name" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-tag"></i> Name
         </label>
-        <input type="text" id="node-input-name" placeholder="Hysteresis" style="width: 70%; vertical-align: middle;">
+        <input type="text" id="node-input-name" placeholder="Hysteresis" style="width: 70%; display: inline-block; vertical-align: middle;">
     </div>
 
     <div class="form-row">
@@ -123,71 +123,74 @@
         <div style="font-weight: bold; margin-bottom: 5px;">Threshold Settings</div>
     </div>
 
-    <div class="form-row">
-        <label for="node-input-ThresholdType" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div class="form-row" style="white-space: nowrap;">
+        <label for="node-input-ThresholdType" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-wrench"></i> Mode
         </label>
-        <select id="node-input-ThresholdType" style="width: 70%; vertical-align: middle;">
+        <select id="node-input-ThresholdType" style="width: 70%; display: inline-block; vertical-align: middle;">
             <option value="fixed">Fixed Thresholds</option>
             <option value="dynamic">Dynamic Thresholds (via msg)</option>
         </select>
     </div>
 
-    <div class="form-row form-row-ThresholdTypeFixed">
-        <label for="node-input-ThresholdRising" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div class="form-row form-row-ThresholdTypeFixed" style="white-space: nowrap;">
+        <label for="node-input-ThresholdRising" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-level-up"></i> Upper Threshold
         </label>
-        <input type="text" id="node-input-ThresholdRising" style="width: 70%; vertical-align: middle;">
+        <input type="text" id="node-input-ThresholdRising" style="width: 70%; display: inline-block; vertical-align: middle;">
         <input type="hidden" id="node-input-ThresholdRisingType">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Number, JSONata, flow/global context, etc.</div>
     </div>
-    <div class="form-row form-row-ThresholdTypeFixed">
-        <label for="node-input-ThresholdFalling" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Number, JSONata, flow/global context, etc.</div>
+
+    <div class="form-row form-row-ThresholdTypeFixed" style="white-space: nowrap;">
+        <label for="node-input-ThresholdFalling" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-level-down"></i> Lower Threshold
         </label>
-        <input type="text" id="node-input-ThresholdFalling" style="width: 70%; vertical-align: middle;">
+        <input type="text" id="node-input-ThresholdFalling" style="width: 70%; display: inline-block; vertical-align: middle;">
         <input type="hidden" id="node-input-ThresholdFallingType">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Evaluated value must be less than Upper Threshold.</div>
     </div>
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Evaluated value must be less than Upper Threshold.</div>
 
-    <div class="form-row form-row-ThresholdTypeDynamic">
-        <label for="node-input-TopicThreshold" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+        <label for="node-input-TopicThreshold" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-envelope-o"></i> Threshold Topic
         </label>
-        <input type="text" id="node-input-TopicThreshold" placeholder="topic for center value" style="width: 70%; vertical-align: middle;">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Topic of msg setting the center point (msg.payload). Not persisted.</div>
+        <input type="text" id="node-input-TopicThreshold" placeholder="topic for center value" style="width: 70%; display: inline-block; vertical-align: middle;">
     </div>
-<div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
-    <label for="node-input-TopicCurrent" style="width: 30%; display: inline-block; vertical-align: middle;">
-        <i class="fa fa-envelope"></i> Input Value Topic
-    </label>
-    <input type="text" id="node-input-TopicCurrent" placeholder="topic for value to check" style="width: 70%; display: inline-block; vertical-align: middle;">
-</div>
-<div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">
-    Topic of msg providing the value to check (msg.payload).
-</div>
-    <div class="form-row form-row-ThresholdTypeDynamic">
-        <label style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;" for="node-input-ThresholdDeltaRising">
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Topic of msg setting the center point (msg.payload). Not persisted.</div>
+
+    <div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+        <label for="node-input-TopicCurrent" style="width: 30%; display: inline-block; vertical-align: middle;">
+            <i class="fa fa-envelope"></i> Input Value Topic
+        </label>
+        <input type="text" id="node-input-TopicCurrent" placeholder="topic for value to check" style="width: 70%; display: inline-block; vertical-align: middle;">
+    </div>
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Topic of msg providing the value to check (msg.payload).</div>
+
+    <div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+        <label style="width: 30%; display: inline-block; vertical-align: middle;" for="node-input-ThresholdDeltaRising">
             <i class="fa fa-plus-square"></i> Hysteresis (+)
         </label>
-        <input type="number" step="any" id="node-input-ThresholdDeltaRising" placeholder="e.g., 2 (non-negative)" style="width: 70%; vertical-align: middle;">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Upper Threshold = Center + Delta(+)</div>
+        <input type="number" step="any" id="node-input-ThresholdDeltaRising" placeholder="e.g., 2 (non-negative)" style="width: 70%; display: inline-block; vertical-align: middle;">
     </div>
-    <div class="form-row form-row-ThresholdTypeDynamic">
-        <label for="node-input-ThresholdDeltaFalling" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Upper Threshold = Center + Delta(+)</div>
+
+    <div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+        <label for="node-input-ThresholdDeltaFalling" style="width: 30%; display: inline-block; vertical-align: middle;">
             <i class="fa fa-minus-square"></i> Hysteresis (-)
         </label>
-        <input type="number" step="any" id="node-input-ThresholdDeltaFalling" placeholder="e.g., 2 (non-negative)" style="width: 70%; vertical-align: middle;">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Lower Threshold = Center - Delta(-)</div>
+        <input type="number" step="any" id="node-input-ThresholdDeltaFalling" placeholder="e.g., 2 (non-negative)" style="width: 70%; display: inline-block; vertical-align: middle;">
     </div>
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">Lower Threshold = Center - Delta(-)</div>
 
-    <div class="form-row form-row-ThresholdTypeDynamic">
-        <label for="node-input-DynRaiseError" style="width: auto; display: inline-block; vertical-align: middle; margin-right: 10px; white-space: nowrap;"> <i class="fa fa-exclamation-triangle"></i> Error if Threshold Missing
+    <div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+        <label for="node-input-DynRaiseError" style="width: auto; display: inline-block; vertical-align: middle; margin-right: 10px;">
+            <i class="fa fa-exclamation-triangle"></i> Error if Threshold Missing
         </label>
-        <input type="checkbox" id="node-input-DynRaiseError" style="width:auto; vertical-align: middle;"> </div>
-    <div class="form-row form-row-ThresholdTypeDynamic">
-         <div style="margin-left: 165px; font-size: 0.8em; color: #888;">If checked, raise error if input arrives before dynamic thresholds are set.</div>
+        <input type="checkbox" id="node-input-DynRaiseError" style="width:auto; vertical-align: middle;">
     </div>
+    <div style="margin-left: 30%; font-size: 0.8em; color: #888;">If checked, raise error if input arrives before dynamic thresholds are set.</div>
+</script>
 
 
     <div class="form-row">
