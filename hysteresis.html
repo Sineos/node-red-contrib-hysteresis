@@ -157,13 +157,15 @@
         <input type="text" id="node-input-TopicThreshold" placeholder="topic for center value" style="width: 70%; vertical-align: middle;">
         <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Topic of msg setting the center point (msg.payload). Not persisted.</div>
     </div>
-    <div class="form-row form-row-ThresholdTypeDynamic">
-        <label for="node-input-TopicCurrent" style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;">
-            <i class="fa fa-envelope"></i> Input Value Topic
-        </label>
-        <input type="text" id="node-input-TopicCurrent" placeholder="topic for value to check" style="width: 70%; vertical-align: middle;">
-        <div style="margin-left: 165px; font-size: 0.8em; color: #888; padding-top: 4px;">Topic of msg providing the value to check (msg.payload).</div>
-    </div>
+<div class="form-row form-row-ThresholdTypeDynamic" style="white-space: nowrap;">
+    <label for="node-input-TopicCurrent" style="width: 30%; display: inline-block; vertical-align: middle;">
+        <i class="fa fa-envelope"></i> Input Value Topic
+    </label>
+    <input type="text" id="node-input-TopicCurrent" placeholder="topic for value to check" style="width: 70%; display: inline-block; vertical-align: middle;">
+</div>
+<div style="margin-left: 30%; font-size: 0.8em; color: #888; padding-top: 4px;">
+    Topic of msg providing the value to check (msg.payload).
+</div>
     <div class="form-row form-row-ThresholdTypeDynamic">
         <label style="width: 30% !important; display: inline-block; vertical-align: middle; white-space: nowrap;" for="node-input-ThresholdDeltaRising">
             <i class="fa fa-plus-square"></i> Hysteresis (+)
